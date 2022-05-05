@@ -21,8 +21,8 @@ struct Point {
 class Matrix {
    private:
     vector<vector<int>> matrix;
-    bool binarySearchDiagonal(vector<Point>, int, int, int, int &, int &, int,
-                              int);
+    bool binarySearchDiagonal(vector<Point>, int, int, int, Point &, Point &,
+                              int, int);
 
    public:
     Matrix(vector<vector<int>>);
@@ -34,37 +34,45 @@ class Matrix {
 };
 
 bool Matrix::binarySearchDiagonal(vector<Point> arr, int val, int left,
-                                  int right, int &smallerV, int &largerV,
+                                  int right, Point &smallerV, Point &largerV,
                                   int rowV, int colV) {
     if (right >= left) {
         int mid = left + (right - left) / 2;
 
         // If the value is at the middle
-        if (arr[mid].val == val && arr[mid].row == rowV &&
-            arr[mid].col == colV) {
+        if (arr[mid].val == val && arr[mid].col == colV) {
             return true;
         }
 
-        // If the value is smaller than mid, then it can only be in left
-        // subarray
-        if (arr[mid].val > val)
+        // If the value is smaller than or equal to mid, and its col or row is
+        // different than mid. Then loop the leftside subarray
+        if (arr[mid].val >= val &&
+            (arr[mid].col != colV || arr[mid].row != rowV)) {
             return binarySearchDiagonal(arr, val, left, mid - 1, smallerV,
                                         largerV, rowV, colV);
-
-        // Else the value can only be present in right subarray
-        return binarySearchDiagonal(arr, val, mid + 1, right, smallerV, largerV,
-                                    rowV, colV);
+        }
+        // // Else the value can only be present in right subarray
+        else {
+            return binarySearchDiagonal(arr, val, mid + 1, right, smallerV,
+                                        largerV, rowV, colV);
+        }
     }
     // Because the loop end after left > right. So there would be two numbers.
     // One is largen than the value, which would return to the very end right,
     // and the other is larger than the value, which would return to the very
     // end left
 
-    // Assign the left to the larger and the right to the
-    //  smaller.
+    // Assign the left to the larger and the right to the smaller.
     if (left >= 0 && right >= 0) {
-        largerV = left;
-        smallerV = right;
+        largerV = arr[left];
+        smallerV = arr[right];
+        // if the value is larger than the largest value of arr, then the
+        // smaller would be the next to the last, and the larger would be the
+        // last.
+        if (left > arr.size() - 1) {
+            smallerV = arr[right - 1];
+            largerV = arr[right];
+        }
     }
     // return false if not found
     return false;
@@ -98,116 +106,80 @@ bool Matrix::elementSearch(int val, int startRow, int endRow, int startCol,
         return false;
     }
     vector<Point> diagonal;
-    // If the number of row is larger than the number of col. The diagonal would
-    // be based on the number of col.
-    if (endRow - startRow > endCol - startCol) {
-        for (int i = 0; i <= endCol - startCol; i++) {
-            Point p1 = {startRow + i, startCol + 1,
-                        matrix[startRow + i][startCol + i]};
+    // if a matrix is 1xn or mx1 then diagonal would be on that col or row.
+    if (startCol == endCol) {
+        for (int i = 0; i <= endRow - startRow; i++) {
+            Point p1 = {startRow + i, startCol, matrix[startRow + i][startCol]};
             diagonal.push_back(p1);
         }
-        // Else the diagonal would be based on the number of row.
-    } else {
-        for (int i = 0; i <= endRow - startRow; i++) {
-            Point p1 = {startRow + i, startCol + 1,
-                        matrix[startRow + i][startCol + i]};
+    } else if (startRow == endRow) {
+        for (int i = 0; i <= endCol - startCol; i++) {
+            Point p1 = {startRow, startCol + i, matrix[startRow][startCol + i]};
             diagonal.push_back(p1);
+        }
+    } else {
+        // If the number of row is larger than the number of col. The diagonal
+        // would be based on the number of col.
+        if (endRow - startRow > endCol - startCol) {
+            for (int i = 0; i <= endCol - startCol; i++) {
+                Point p1 = {startRow + i, startCol + i,
+                            matrix[startRow + i][startCol + i]};
+                diagonal.push_back(p1);
+            }
+            // }
+            // Else the diagonal would be based on the number of row.
+        } else {
+            for (int i = 0; i <= endRow - startRow; i++) {
+                Point p1 = {startRow + i, startCol + i,
+                            matrix[startRow + i][startCol + i]};
+                diagonal.push_back(p1);
+            }
         }
     }
-
-    int smallerV = 0;  // the smaller of the value
-    int largerV = 0;   // the larger of the value
+    // the smaller of the value
+    // the larger of the value
+    Point smallerPoint = {0, 0, 0};
+    Point largerPoint = {0, 0, 0};
 
     // Search the value on the diagonal. if found return true. if not, there
     // will be two values and assign it to smallerV and largerV.
-    if (binarySearchDiagonal(diagonal, val, 0, diagonal.size() - 1, smallerV,
-                             largerV, rowV, colV)) {
+    if (binarySearchDiagonal(diagonal, val, 0, diagonal.size() - 1,
+                             smallerPoint, largerPoint, rowV, colV)) {
         return true;
-    } else {
-        // Create two points with value corresspoding to its row and col
-        Point smallerPoint;
-        Point largerPoint;
-
-        // if the smallerPoint is in the matrix in which its row and col do not
-        // excess the max col and max row of the matrix.
-        if (startCol + smallerV <= MAXCOL - 1 &&
-            startRow + smallerV <= MAXROW - 1) {
-            smallerPoint = {startRow + smallerV, startCol + smallerV,
-                            matrix[startRow + smallerV][startCol + smallerV]};
+    }
+    // if the largerpoint's value found is smaller than the value and its col is
+    // equal to the value's col
+    else if (largerPoint.val <= val && largerPoint.col == colV) {
+        // then diagonal would be any number which has the same largerpoint's
+        // col but below rows.
+        for (int i = 1; i <= endRow - largerPoint.row; i++) {
+            Point p1 = {largerPoint.row + i, largerPoint.col,
+                        matrix[largerPoint.row + i][largerPoint.col]};
+            diagonal.push_back(p1);
         }
 
-        // if the largerPoint is in the matrix in which its row and col do not
-        // excess the max col and max row of the matrix.
-        if (startCol + largerV <= MAXCOL - 1 &&
-            startRow + largerV <= MAXROW - 1) {
-            largerPoint = {startRow + largerV, startCol + largerV,
-                           matrix[startRow + largerV][startCol + largerV]};
-        }
-        // for matrix 2x2 and the largerPoint's col would excess the max
-        // col of the matrix, which is on the top right matrix 2x2.
-        else if (startCol + largerV >= MAXCOL - 1 && startRow == 0 &&
-                 endRow == 1 && startCol + 1 == endCol) {
-            smallerPoint = {startRow + smallerV, startCol,
-                            matrix[startRow + smallerV][startCol]};
-            largerPoint = {startRow + smallerV, endCol,
-                           matrix[startRow + smallerV][endCol]};
-        }
-        // the largerPoint would be present on the next col of the smaller
-        // point.
-        else {
-            largerPoint = {smallerPoint.row, smallerPoint.col + 1,
-                           matrix[smallerPoint.row][smallerPoint.col + 1]};
-        }
-
-        // if the largerPoint's value is equal to the value
-        if (largerPoint.val == val) {
-            // return true if its row and col match the value's col and row
-            if (largerPoint.row == rowV && largerPoint.col == colV) {
-                return true;
-            }
-        }
-
-        // if the smaller's value is equal to the value
-        if (smallerPoint.val == val) {
-            // return true if its row and col match the value's col and row
-            if (smallerPoint.row == rowV && smallerPoint.col == colV) {
-                return true;
-            }
-            // To this matrix. As there are some elements that have the same
-            // value. So the value, which is on top of the smaller, value
-            // would never be inspected. So if there is a difference by one row
-            // between the two. Return true
-            // Let m - is the value.
-            /* x x x 2 2 2
-               x x m 2 2 2
-               x x S 2 2 2
-               1 1 1 L x x
-               1 1 1 x x x */
-            else if (smallerPoint.col == colV &&
-                     abs(smallerPoint.row - rowV) == 1) {
-                return true;
-            }
-        }
-
-        // Search the
-        // Let L - is the larger of the value. and S - is the smaller of the
-        // value
-        // we would rule out everything that is smaller than S and largen than L
-        // (marked by x)
-        //  so we inspect a rectangle which goes below of S's row and the left
-        //  of L's col (marked by 1) and a rectangle which goes on top of L's
-        //  row and the right of S's col (marked by 2)
-        /* x x x 2 2 2
-           x x x 2 2 2
-           x x S 2 2 2
-           1 1 1 L x x
-           1 1 1 x x x */
-        if (elementSearch(val, smallerPoint.row + 1, endRow, startCol,
-                          largerPoint.col - 1, rowV, colV)) {
+        // do binary search on the diagonal.
+        if (binarySearchDiagonal(diagonal, val, 0, diagonal.size() - 1,
+                                 smallerPoint, largerPoint, rowV, colV)) {
             return true;
+        };
+    } else {
+        // for the matrix, not 1d, below the largest number of diagonal, and the
+        // total of its colums is larger than the size of diagonal
+        if (largerPoint.row == MAXROW - 1 && startRow != endRow &&
+            endCol - startCol > diagonal.size() && largerPoint.val <= val) {
+            // jumps 3 colums to the right, making matrix smaller, until finding
+            // out the proper largerpoint.
+            return elementSearch(val, startRow, endRow,
+                                 startCol + diagonal.size(), endCol, rowV,
+                                 colV);
+
+        } else {
+            return elementSearch(val, smallerPoint.row + 1, endRow, startCol,
+                                 largerPoint.col - 1, rowV, colV) ||
+                   elementSearch(val, startRow, largerPoint.row - 1,
+                                 smallerPoint.col + 1, endCol, rowV, colV);
         }
-        return elementSearch(val, startRow, largerPoint.row - 1,
-                             smallerPoint.col + 1, endCol, rowV, colV);
     }
 
     return false;
@@ -247,7 +219,9 @@ void Matrix::verifyAllSearchedElements() {
     cout << "Verify that we can find every data value in the array" << endl;
     if (totalElementsFound == MAXROW * MAXCOL) {
         cout << "Found them all!\n" << endl;
+        cout << totalElementsFound << endl;
     } else {
+        cout << totalElementsFound << endl;
         cout << "There are something wrongs\n" << endl;
     }
 };
@@ -265,8 +239,8 @@ void Matrix::verifyFoundWrongElements(int value, int rowV, int colV) {
 int main() {
     vector<vector<int>> arr2D = {
         {1, 5, 7, 9, 17, 22, 27, 31},
-        {3, 5, 9, 10, 17, 29, 31, 31},
-        {6, 7, 9, 13, 22, 36, 68, 99},
+        {3, 5, 9, 9, 17, 29, 31, 31},
+        {6, 7, 9, 11, 22, 36, 68, 99},
         {10, 13, 16, 30, 55, 100, 171, 270},
         {18, 22, 24, 33, 63, 105, 171, 278},
         {24, 26, 33, 40, 69, 110, 172, 281},
